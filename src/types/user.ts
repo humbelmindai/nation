@@ -87,45 +87,10 @@ export interface UserStats {
   lastOrderDate?: Date
 }
 
-// Authentication types
-export interface LoginCredentials {
-  email: string
-  password: string
-  rememberMe?: boolean
-}
-
-export interface RegisterData {
-  email: string
-  password: string
-  confirmPassword: string
-  firstName: string
-  lastName: string
-  phone?: string
-  dateOfBirth: Date
-  termsAccepted: boolean
-  privacyAccepted: boolean
-  marketingConsent?: boolean
-}
-
 export interface AuthTokens {
   accessToken: string
   refreshToken: string
   expiresIn: number
-}
-
-export interface AuthResponse {
-  user: User
-  tokens: AuthTokens
-}
-
-export interface PasswordResetData {
-  email: string
-}
-
-export interface PasswordUpdateData {
-  currentPassword: string
-  newPassword: string
-  confirmPassword: string
 }
 
 // Age verification types
