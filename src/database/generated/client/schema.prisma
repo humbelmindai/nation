@@ -1,0 +1,929 @@
+// 420 Nation Platform - Prisma Database Schema
+// This schema defines the database structure for the cannabis wellness platform
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  consumer
+  vendor
+  professional
+  admin
+}
+
+enum UserStatus {
+  active
+  suspended
+  deleted
+}
+
+enum AgeVerificationMethod {
+  self_declaration
+  id_scan
+  manual_review
+}
+
+enum AddressType {
+  billing
+  shipping
+  primary
+}
+
+enum BusinessType {
+  dispensary
+  delivery
+  cultivation
+  manufacturing
+}
+
+enum StoreStatus {
+  pending
+  active
+  suspended
+  closed
+}
+
+enum ComplianceStatus {
+  compliant
+  warning
+  violation
+}
+
+enum TrackTraceSystem {
+  metrc
+  leafdata
+  biotrack
+  other
+}
+
+enum ProductType {
+  flower
+  edibles
+  concentrates
+  topicals
+  accessories
+  other
+}
+
+enum StrainType {
+  sativa
+  indica
+  hybrid
+  cbd
+  unknown
+}
+
+enum ProductStatus {
+  draft
+  active
+  out_of_stock
+  discontinued
+  pending_approval
+}
+
+enum OrderType {
+  pickup
+  delivery
+  curbside
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  preparing
+  ready
+  out_for_delivery
+  delivered
+  completed
+  cancelled
+}
+
+enum PaymentStatus {
+  pending
+  processing
+  paid
+  failed
+  refunded
+  partially_refunded
+}
+
+enum PaymentMethod {
+  cash
+  debit
+  credit
+  bank_transfer
+  cryptocurrency
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+  flagged
+}
+
+enum ReviewableType {
+  store
+  product
+  order
+}
+
+enum ProfessionalType {
+  doctor
+  psychologist
+  therapist
+  nutritionist
+  pharmacist
+  researcher
+}
+
+enum ConsultationType {
+  initial
+  follow_up
+  emergency
+  second_opinion
+}
+
+enum SessionType {
+  in_person
+  video
+  phone
+  chat
+}
+
+enum BlogCategory {
+  news
+  education
+  research
+  lifestyle
+  medical
+  legal
+  industry
+}
+
+enum BlogStatus {
+  draft
+  published
+  archived
+  scheduled
+}
+
+// =============================================================================
+// USER MANAGEMENT
+// =============================================================================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique @db.VarChar(254)
+  emailVerified Boolean  @default(false)
+  passwordHash  String   @db.VarChar(255)
+  role          UserRole @default(consumer)
+
+  // Personal Information
+  firstName   String?   @db.VarChar(100)
+  lastName    String?   @db.VarChar(100)
+  phone       String?   @db.VarChar(20)
+  dateOfBirth DateTime? @db.Date
+
+  // Account Status
+  status              UserStatus @default(active)
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+
+  // Age Verification
+  ageVerified           Boolean                @default(false)
+  ageVerificationMethod AgeVerificationMethod?
+  ageVerifiedAt         DateTime?
+  ageVerifiedBy         String?
+
+  // Privacy & Compliance
+  termsAcceptedAt   DateTime?
+  privacyAcceptedAt DateTime?
+  marketingConsent  Boolean   @default(false)
+  gdprConsent       Boolean   @default(false)
+  ccpaOptOut        Boolean   @default(false)
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
+
+  // Relations
+  addresses              UserAddress[]
+  sessions               UserSession[]
+  stores                 Store[]
+  orders                 Order[]
+  reviews                Review[]
+  professional           Professional?
+  storeStaff             StoreStaff[]
+  consultationsAsPatient Consultation[] @relation("PatientConsultations")
+  ageVerifier            User?          @relation("AgeVerifier", fields: [ageVerifiedBy], references: [id])
+  ageVerifications       User[]         @relation("AgeVerifier")
+  blogPosts              BlogPost[]
+  factCheckedPosts       BlogPost[]     @relation("FactChecker")
+
+  @@map("users")
+}
+
+model UserAddress {
+  id     String      @id @default(cuid())
+  userId String
+  type   AddressType
+
+  // Address Information
+  addressLine1 String  @db.VarChar(255)
+  addressLine2 String? @db.VarChar(255)
+  city         String  @db.VarChar(100)
+  state        String  @db.VarChar(50)
+  postalCode   String  @db.VarChar(20)
+  country      String  @default("US") @db.VarChar(50)
+
+  // Geolocation
+  latitude  Decimal? @db.Decimal(10, 8)
+  longitude Decimal? @db.Decimal(11, 8)
+
+  // Status
+  isDefault Boolean @default(false)
+  verified  Boolean @default(false)
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_addresses")
+}
+
+model UserSession {
+  id                String  @id @default(cuid())
+  userId            String
+  refreshTokenHash  String  @unique @db.VarChar(255)
+  deviceFingerprint String? @db.VarChar(255)
+
+  // Session Information
+  ipAddress       String? @db.VarChar(45)
+  userAgent       String? @db.Text
+  locationCountry String? @db.VarChar(50)
+  locationRegion  String? @db.VarChar(100)
+  locationCity    String? @db.VarChar(100)
+
+  // Status and Expiry
+  isActive   Boolean  @default(true)
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+// =============================================================================
+// STORE MANAGEMENT
+// =============================================================================
+
+model Store {
+  id          String  @id @default(cuid())
+  ownerId     String
+  name        String  @db.VarChar(200)
+  slug        String  @unique @db.VarChar(200)
+  description String? @db.Text
+
+  // Contact Information
+  email   String? @db.VarChar(254)
+  phone   String? @db.VarChar(20)
+  website String? @db.VarChar(500)
+
+  // Address and Location
+  addressLine1 String  @db.VarChar(255)
+  addressLine2 String? @db.VarChar(255)
+  city         String  @db.VarChar(100)
+  state        String  @db.VarChar(50)
+  postalCode   String  @db.VarChar(20)
+  latitude     Decimal @db.Decimal(10, 8)
+  longitude    Decimal @db.Decimal(11, 8)
+
+  // Business Information
+  businessType     BusinessType
+  licenseNumber    String       @unique @db.VarChar(100)
+  licenseType      String       @db.VarChar(100)
+  licenseState     String       @db.VarChar(50)
+  licenseExpiresAt DateTime     @db.Date
+
+  // Store Features (JSON)
+  features       Json? // ['delivery', 'pickup', 'curbside', 'atm', 'parking']
+  paymentMethods Json? // ['cash', 'debit', 'credit', 'cryptocurrency']
+  deliveryRadius Int? // in kilometers
+  minimumOrder   Decimal? @db.Decimal(10, 2)
+  deliveryFee    Decimal? @db.Decimal(10, 2)
+
+  // Operating Hours (JSON)
+  operatingHours Json? // { "monday": { "open": "09:00", "close": "22:00" } }
+
+  // Store Status and Verification
+  status     StoreStatus @default(pending)
+  verified   Boolean     @default(false)
+  verifiedAt DateTime?
+  verifiedBy String?
+
+  // Media
+  logoUrl       String? @db.VarChar(500)
+  coverImageUrl String? @db.VarChar(500)
+  galleryImages Json? // Array of image URLs
+
+  // SEO and Marketing
+  metaTitle       String? @db.VarChar(60)
+  metaDescription String? @db.VarChar(160)
+  socialMedia     Json? // { "instagram": "handle", "facebook": "url" }
+
+  // Compliance and Tracking
+  metrcLicenseId   String?           @db.VarChar(100)
+  metrcLastSync    DateTime?
+  complianceStatus ComplianceStatus  @default(compliant)
+  trackTraceSystem TrackTraceSystem?
+
+  // Statistics (denormalized for performance)
+  totalProducts Int     @default(0)
+  averageRating Decimal @default(0.00) @db.Decimal(3, 2)
+  totalReviews  Int     @default(0)
+  totalOrders   Int     @default(0)
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
+
+  // Relations
+  owner    User         @relation(fields: [ownerId], references: [id])
+  staff    StoreStaff[]
+  products Product[]
+  orders   Order[]
+  reviews  Review[]
+
+  @@map("stores")
+}
+
+model StoreStaff {
+  id          String @id @default(cuid())
+  storeId     String
+  userId      String
+  role        String @db.VarChar(50) // 'owner', 'manager', 'budtender', 'delivery', 'admin'
+  permissions Json? // Array of specific permissions
+
+  // Employment Details
+  employeeId     String?   @db.VarChar(50)
+  startDate      DateTime  @db.Date
+  endDate        DateTime? @db.Date
+  hourlyWage     Decimal?  @db.Decimal(8, 2)
+  commissionRate Decimal?  @db.Decimal(5, 2)
+
+  // Status
+  status             String  @default("active") @db.VarChar(20) // 'active', 'inactive', 'terminated'
+  canAccessPos       Boolean @default(false)
+  canManageInventory Boolean @default(false)
+  canProcessOrders   Boolean @default(false)
+
+  // Compliance Training
+  complianceTrainingCompleted Boolean   @default(false)
+  trainingCompletedAt         DateTime?
+  trainingExpiresAt           DateTime? @db.Date
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, userId])
+  @@map("store_staff")
+}
+
+// =============================================================================
+// PRODUCT CATALOG
+// =============================================================================
+
+model ProductCategory {
+  id          String  @id @default(cuid())
+  parentId    String?
+  name        String  @db.VarChar(100)
+  slug        String  @unique @db.VarChar(100)
+  description String? @db.Text
+
+  // Category Properties
+  iconName  String? @db.VarChar(50)
+  colorHex  String? @db.VarChar(7)
+  sortOrder Int     @default(0)
+
+  // Cannabis-specific properties
+  productType       ProductType
+  thcCategory       String?     @db.VarChar(20) // 'high_thc', 'low_thc', 'cbd_dominant', 'balanced', 'no_thc'
+  consumptionMethod String?     @db.VarChar(20) // 'smoking', 'vaping', 'edible', 'topical', 'sublingual', 'other'
+
+  // SEO
+  metaTitle       String? @db.VarChar(60)
+  metaDescription String? @db.VarChar(160)
+
+  // Status
+  isActive           Boolean @default(true)
+  requiresCompliance Boolean @default(true)
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  parent   ProductCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("CategoryHierarchy")
+  products Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id         String @id @default(cuid())
+  storeId    String
+  categoryId String
+
+  // Product Information
+  name             String  @db.VarChar(200)
+  slug             String  @db.VarChar(200)
+  description      String? @db.Text
+  shortDescription String? @db.VarChar(500)
+
+  // Cannabis-specific Information
+  strainName   String?     @db.VarChar(100)
+  strainType   StrainType?
+  brand        String?     @db.VarChar(100)
+  manufacturer String?     @db.VarChar(100)
+
+  // THC/CBD Information
+  thcPercentage     Decimal? @db.Decimal(5, 2)
+  cbdPercentage     Decimal? @db.Decimal(5, 2)
+  thcaPercentage    Decimal? @db.Decimal(5, 2)
+  cbdaPercentage    Decimal? @db.Decimal(5, 2)
+  totalCannabinoids Decimal? @db.Decimal(5, 2)
+
+  // Product Variants and Pricing
+  basePrice   Decimal  @db.Decimal(10, 2)
+  salePrice   Decimal? @db.Decimal(10, 2)
+  costPrice   Decimal? @db.Decimal(10, 2)
+  weightGrams Decimal? @db.Decimal(8, 3)
+
+  // Inventory
+  sku               String  @db.VarChar(100)
+  barcode           String? @db.VarChar(100)
+  stockQuantity     Int     @default(0)
+  reservedQuantity  Int     @default(0)
+  lowStockThreshold Int     @default(5)
+
+  // Track and Trace
+  metrcId        String?   @db.VarChar(100)
+  batchNumber    String?   @db.VarChar(100)
+  harvestDate    DateTime? @db.Date
+  packageDate    DateTime? @db.Date
+  expirationDate DateTime? @db.Date
+
+  // Lab Testing
+  labTested      Boolean   @default(false)
+  labTestResults Json? // Store test results
+  testedDate     DateTime? @db.Date
+  testingLab     String?   @db.VarChar(200)
+
+  // Media
+  featuredImageUrl String? @db.VarChar(500)
+  galleryImages    Json? // Array of image URLs
+
+  // Product Status
+  status         ProductStatus @default(draft)
+  isFeatured     Boolean       @default(false)
+  isMedicalOnly  Boolean       @default(false)
+  ageRestriction Int           @default(21)
+
+  // SEO
+  metaTitle       String? @db.VarChar(60)
+  metaDescription String? @db.VarChar(160)
+
+  // Tags and Search
+  tags           Json? // Array of tags for filtering
+  searchKeywords String? @db.Text
+
+  // Statistics (denormalized)
+  viewCount     Int     @default(0)
+  averageRating Decimal @default(0.00) @db.Decimal(3, 2)
+  reviewCount   Int     @default(0)
+  salesCount    Int     @default(0)
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
+
+  // Relations
+  store      Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category   ProductCategory @relation(fields: [categoryId], references: [id])
+  reviews    Review[]
+  orderItems OrderItem[]
+
+  @@unique([storeId, sku])
+  @@map("products")
+}
+
+// =============================================================================
+// ORDERS & TRANSACTIONS
+// =============================================================================
+
+model Order {
+  id          String @id @default(cuid())
+  orderNumber String @unique @db.VarChar(50)
+  userId      String
+  storeId     String
+
+  // Order Type and Fulfillment
+  orderType         OrderType
+  fulfillmentStatus OrderStatus @default(pending)
+
+  // Delivery Information
+  deliveryAddress       Json? // Full address object
+  deliveryInstructions  String?   @db.Text
+  deliveryTimeRequested DateTime?
+  deliveryTimeActual    DateTime?
+  deliveryPersonId      String?
+
+  // Order Totals
+  subtotal       Decimal @db.Decimal(10, 2)
+  taxAmount      Decimal @default(0.00) @db.Decimal(10, 2)
+  deliveryFee    Decimal @default(0.00) @db.Decimal(10, 2)
+  serviceFee     Decimal @default(0.00) @db.Decimal(10, 2)
+  discountAmount Decimal @default(0.00) @db.Decimal(10, 2)
+  tipAmount      Decimal @default(0.00) @db.Decimal(10, 2)
+  totalAmount    Decimal @db.Decimal(10, 2)
+
+  // Payment
+  paymentStatus   PaymentStatus @default(pending)
+  paymentMethod   PaymentMethod
+  paymentProvider String?       @db.VarChar(50)
+  paymentIntentId String?       @db.VarChar(100)
+
+  // Age Verification
+  ageVerifiedAtDelivery DateTime?
+  idCheckedBy           String?
+
+  // Special Instructions
+  customerNotes String? @db.Text
+  internalNotes String? @db.Text
+
+  // Compliance and Tracking
+  metrcTransferManifest String?   @db.VarChar(100)
+  complianceCheckPassed Boolean   @default(false)
+  complianceCheckedAt   DateTime?
+  complianceCheckedBy   String?
+
+  // Cancellation/Return
+  cancelledAt        DateTime?
+  cancelledBy        String?
+  cancellationReason String?   @db.Text
+  refundAmount       Decimal   @default(0.00) @db.Decimal(10, 2)
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user    User        @relation(fields: [userId], references: [id])
+  store   Store       @relation(fields: [storeId], references: [id])
+  items   OrderItem[]
+  reviews Review[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+
+  // Item Details
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
+
+  // Product snapshot (for historical accuracy)
+  productName   String   @db.VarChar(200)
+  productSku    String?  @db.VarChar(100)
+  productBrand  String?  @db.VarChar(100)
+  thcPercentage Decimal? @db.Decimal(5, 2)
+  cbdPercentage Decimal? @db.Decimal(5, 2)
+  weightGrams   Decimal? @db.Decimal(8, 3)
+
+  // Track and Trace
+  metrcPackageId String? @db.VarChar(100)
+  batchNumber    String? @db.VarChar(100)
+
+  // Special requests
+  customerNotes String? @db.Text
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+// =============================================================================
+// REVIEWS & RATINGS
+// =============================================================================
+
+model Review {
+  id             String         @id @default(cuid())
+  userId         String
+  reviewableType ReviewableType
+  reviewableId   String
+
+  // Review Content
+  rating  Int // 1-5
+  title   String? @db.VarChar(200)
+  content String  @db.Text
+
+  // Review Categories (cannabis-specific)
+  qualityRating Int? // 1-5
+  valueRating   Int? // 1-5
+  serviceRating Int? // 1-5
+  effectsRating Int? // 1-5
+
+  // Cannabis Product Effects (for product reviews)
+  effects         Json? // ['relaxed', 'happy', 'euphoric', 'creative']
+  medicalBenefits Json? // ['pain_relief', 'anxiety', 'insomnia']
+  sideEffects     Json? // ['dry_mouth', 'dry_eyes', 'paranoia']
+
+  // Media
+  images Json? // Array of image URLs
+
+  // Moderation
+  status           ReviewStatus @default(pending)
+  moderatedAt      DateTime?
+  moderatedBy      String?
+  moderationReason String?      @db.Text
+
+  // Verification
+  verifiedPurchase Boolean @default(false)
+  orderId          String?
+
+  // Helpfulness
+  helpfulCount Int @default(0)
+  totalVotes   Int @default(0)
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user  User   @relation(fields: [userId], references: [id])
+  order Order? @relation(fields: [orderId], references: [id])
+
+  // Polymorphic relations
+  store   Store?   @relation(fields: [reviewableId], references: [id], map: "review_store_fkey")
+  product Product? @relation(fields: [reviewableId], references: [id], map: "review_product_fkey")
+
+  @@unique([userId, reviewableType, reviewableId])
+  @@map("reviews")
+}
+
+// =============================================================================
+// PROFESSIONAL NETWORK
+// =============================================================================
+
+model Professional {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Professional Information
+  professionalType ProfessionalType
+  licenseNumber    String           @db.VarChar(100)
+  licenseState     String           @db.VarChar(50)
+  licenseExpiresAt DateTime         @db.Date
+
+  // Specializations (JSON)
+  specializations Json? // ['chronic_pain', 'anxiety', 'ptsd', 'cancer']
+  certifications  Json? // Array of certification objects
+
+  // Practice Information
+  practiceName    String? @db.VarChar(200)
+  practiceAddress Json? // Address object
+  practicePhone   String? @db.VarChar(20)
+  practiceWebsite String? @db.VarChar(500)
+
+  // Cannabis Specific
+  cannabisExperienceYears Int?
+  cannabisCertifications  Json? // Array of cannabis certifications
+  preferredProducts       Json? // Product categories they recommend
+  treatmentApproaches     Json? // ['micro_dosing', 'full_spectrum', 'cbd_only']
+
+  // Availability
+  consultationTypes  Json? // ['in_person', 'video', 'phone', 'chat']
+  hourlyRate         Decimal? @db.Decimal(8, 2)
+  acceptsInsurance   Boolean  @default(false)
+  insuranceProviders Json? // Array of insurance providers
+
+  // Verification
+  verified              Boolean   @default(false)
+  verifiedAt            DateTime?
+  verifiedBy            String?
+  verificationDocuments Json? // Array of document references
+
+  // Statistics
+  consultationCount Int     @default(0)
+  averageRating     Decimal @default(0.00) @db.Decimal(3, 2)
+  reviewCount       Int     @default(0)
+
+  // Status
+  status               String  @default("pending") @db.VarChar(20) // 'pending', 'active', 'suspended', 'inactive'
+  acceptingNewPatients Boolean @default(true)
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consultations Consultation[]
+
+  @@map("professionals")
+}
+
+model Consultation {
+  id             String @id @default(cuid())
+  patientId      String
+  professionalId String
+
+  // Consultation Details
+  consultationType ConsultationType
+  sessionType      SessionType
+
+  // Scheduling
+  scheduledAt     DateTime
+  durationMinutes Int      @default(60)
+  timezone        String   @db.VarChar(50)
+
+  // Status
+  status String @default("scheduled") @db.VarChar(20) // 'scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show'
+
+  // Meeting Information
+  meetingUrl      String? @db.VarChar(500)
+  meetingId       String? @db.VarChar(100)
+  meetingPassword String? @db.VarChar(50)
+
+  // Consultation Notes
+  chiefComplaint      String? @db.Text
+  symptoms            Json? // Array of symptoms
+  currentMedications  Json? // Array of current medications
+  cannabisExperience  String? @db.VarChar(20) // 'none', 'beginner', 'intermediate', 'experienced'
+  previousCannabisUse String? @db.Text
+
+  // Professional Notes (encrypted)
+  assessment         String?   @db.Text
+  recommendations    String?   @db.Text
+  prescribedProducts Json? // Array of recommended products
+  followUpNeeded     Boolean   @default(false)
+  followUpDate       DateTime? @db.Date
+
+  // Payment
+  consultationFee Decimal @db.Decimal(8, 2)
+  paymentStatus   String  @default("pending") @db.VarChar(20) // 'pending', 'paid', 'refunded'
+  paymentId       String? @db.VarChar(100)
+
+  // Compliance
+  medicalConsentSigned        Boolean @default(false)
+  privacyConsentSigned        Boolean @default(false)
+  consultationAgreementSigned Boolean @default(false)
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  patient      User         @relation("PatientConsultations", fields: [patientId], references: [id])
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@map("consultations")
+}
+
+// =============================================================================
+// CONTENT MANAGEMENT
+// =============================================================================
+
+model BlogPost {
+  id       String @id @default(cuid())
+  authorId String
+
+  // Content
+  title            String  @db.VarChar(255)
+  slug             String  @unique @db.VarChar(255)
+  excerpt          String? @db.Text
+  content          String  @db.Text
+  featuredImageUrl String? @db.VarChar(500)
+
+  // Categorization
+  category BlogCategory
+  tags     Json? // Array of tags
+
+  // SEO
+  metaTitle       String? @db.VarChar(60)
+  metaDescription String? @db.VarChar(160)
+  metaKeywords    String? @db.VarChar(255)
+
+  // Publishing
+  status       BlogStatus @default(draft)
+  publishedAt  DateTime?
+  scheduledFor DateTime?
+
+  // Engagement
+  viewCount    Int @default(0)
+  likeCount    Int @default(0)
+  commentCount Int @default(0)
+  shareCount   Int @default(0)
+
+  // Compliance
+  factChecked       Boolean   @default(false)
+  factCheckedBy     String?
+  factCheckedAt     DateTime?
+  medicalDisclaimer Boolean   @default(true)
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  author      User  @relation(fields: [authorId], references: [id])
+  factChecker User? @relation("FactChecker", fields: [factCheckedBy], references: [id])
+
+  @@map("blog_posts")
+}
+
+// =============================================================================
+// COMPLIANCE & AUDIT TABLES
+// =============================================================================
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  // Event Information
+  action       String  @db.VarChar(100)
+  resourceType String  @db.VarChar(50)
+  resourceId   String?
+
+  // User and Session
+  userId    String?
+  sessionId String?
+  ipAddress String? @db.VarChar(45)
+  userAgent String? @db.Text
+
+  // Change Details
+  oldValues Json?
+  newValues Json?
+
+  // Request Context
+  requestId  String? @db.VarChar(36)
+  endpoint   String? @db.VarChar(255)
+  httpMethod String? @db.VarChar(10)
+
+  // Risk and Compliance
+  riskLevel          String  @default("low") @db.VarChar(10) // 'low', 'medium', 'high', 'critical'
+  complianceRelevant Boolean @default(false)
+
+  // Result
+  result       String  @db.VarChar(10) // 'success', 'failure', 'error'
+  errorMessage String? @db.Text
+
+  // Timestamp
+  timestamp DateTime @default(now())
+
+  @@map("audit_logs")
+}

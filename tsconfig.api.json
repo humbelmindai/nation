@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "module": "CommonJS",
+    "target": "ES2022",
+    "moduleResolution": "node"
+  },
+  "include": [
+    "src/api/**/*",
+    "src/database/**/*",
+    "src/utils/**/*",
+    "src/types/**/*",
+    "src/lib/**/*"
+  ],
+  "exclude": [
+    "src/components/**/*",
+    "src/pages/**/*",
+    "src/hooks/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
+}

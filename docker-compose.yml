@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  # MariaDB Database
+  mariadb:
+    image: mariadb:11.4
+    container_name: nation_mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_change_this
+      MYSQL_DATABASE: nation_db
+      MYSQL_USER: nation_user
+      MYSQL_PASSWORD: nation_password_change_this
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./config/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./config/mysql/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    networks:
+      - nation_network
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max_connections=1000
+      --innodb_buffer_pool_size=512M
+      --innodb_log_file_size=128M
+      --slow_query_log=1
+      --long_query_time=2
+      --general_log=0
+
+  # Redis Cache
+  redis:
+    image: redis:7.2-alpine
+    container_name: nation_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - nation_network
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes
+
+  # Elasticsearch for search (optional, can be disabled for simple setups)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.0
+    container_name: nation_elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - nation_network
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    profiles:
+      - full # Only start with 'docker-compose --profile full up'
+
+  # Adminer (Database Management GUI)
+  adminer:
+    image: adminer:4.8.1
+    container_name: nation_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: mariadb
+      ADMINER_DESIGN: nette
+    networks:
+      - nation_network
+    depends_on:
+      - mariadb
+
+  # Redis Commander (Redis Management GUI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: nation_redis_commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379
+      HTTP_USER: admin
+      HTTP_PASSWORD: admin_change_this
+    networks:
+      - nation_network
+    depends_on:
+      - redis
+
+  # Nginx Reverse Proxy (for production-like setup)
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nation_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/sites/:/etc/nginx/conf.d/:ro
+      - ./public:/var/www/html/public:ro
+    networks:
+      - nation_network
+    profiles:
+      - full # Only start with 'docker-compose --profile full up'
+
+volumes:
+  mariadb_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+
+networks:
+  nation_network:
+    driver: bridge
+    name: nation_network
