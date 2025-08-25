@@ -15,7 +15,6 @@ async function getStoreHandler(request: NextRequest, { params }: { params: { id:
         owner: {
           select: {
             id: true,
-            username: true,
             firstName: true,
             lastName: true
           }
@@ -29,11 +28,11 @@ async function getStoreHandler(request: NextRequest, { params }: { params: { id:
             name: true,
             slug: true,
             shortDescription: true,
-            price: true,
-            media: true,
-            rating: true,
+            basePrice: true,
+            featuredImageUrl: true,
+            averageRating: true,
             reviewCount: true,
-            featured: true
+            isFeatured: true
           }
         }
       }
@@ -43,11 +42,7 @@ async function getStoreHandler(request: NextRequest, { params }: { params: { id:
       return notFoundResponse('Store not found')
     }
 
-    // Increment view count
-    await prisma.store.update({
-      where: { id: params.id },
-      data: { viewCount: { increment: 1 } }
-    })
+    // Note: Store view count tracking would go here if added to schema
 
     return successResponse(store)
 
@@ -82,12 +77,11 @@ async function updateStoreHandler(request: NextRequest, user: JWTPayload, { para
       data: {
         ...validatedData,
         updatedAt: new Date(),
-        // Allow admins to update address, operating hours, etc.
-        ...(body.address && { address: body.address }),
+        // Allow admins to update address fields individually
         ...(body.operatingHours && { operatingHours: body.operatingHours }),
         ...(body.socialMedia && { socialMedia: body.socialMedia }),
-        ...(body.media && { media: { ...existingStore.media, ...body.media } }),
-        ...(body.seo && { seo: { ...existingStore.seo, ...body.seo } })
+        ...(body.logoUrl && { logoUrl: body.logoUrl }),
+        ...(body.coverImageUrl && { coverImageUrl: body.coverImageUrl })
       }
     })
 

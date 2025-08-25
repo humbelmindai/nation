@@ -46,7 +46,7 @@ export const productSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   shortDescription: z.string().optional(),
   storeId: z.string().optional(), // Optional because it may be set by the API based on vendor
-  categoryId: z.string().optional(),
+  categoryId: z.string().min(1, 'Category is required'),
   strainName: z.string().optional(),
   strainType: z.enum(['indica', 'sativa', 'hybrid', 'cbd', 'unknown']).optional(),
   brand: z.string().min(1, 'Brand is required'),

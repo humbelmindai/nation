@@ -13,7 +13,7 @@ async function getStoresHandler(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const params = Object.fromEntries(searchParams)
     
-    const { page, limit } = validateInput(paginationSchema, params)
+    const { page = 1, limit = 20 } = validateInput(paginationSchema, params)
     const skip = (page - 1) * limit
 
     // Build where clause
@@ -51,7 +51,7 @@ async function getStoresHandler(request: NextRequest) {
           id: true,
           name: true,
           slug: true,
-          shortDescription: true,
+          description: true,
           businessType: true,
           status: true,
           email: true,

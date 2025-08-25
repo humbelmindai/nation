@@ -150,20 +150,39 @@ async function createProductHandler(request: NextRequest, user: JWTPayload) {
     // Generate slug from name
     const slug = generateSlug(validatedData.name)
 
-    const { inventoryQuantity, price, featured, ...productData } = validatedData
+    // Ensure storeId and categoryId are set
+    if (!validatedData.storeId) {
+      return errorResponse('Store ID is required', 'MISSING_STORE_ID', 400)
+    }
+    if (!validatedData.categoryId) {
+      return errorResponse('Category ID is required', 'MISSING_CATEGORY_ID', 400)
+    }
     
     const product = await prisma.product.create({
       data: {
-        ...productData,
+        name: validatedData.name,
+        description: validatedData.description,
+        shortDescription: validatedData.shortDescription,
+        storeId: validatedData.storeId,
+        categoryId: validatedData.categoryId,
+        strainName: validatedData.strainName,
+        strainType: validatedData.strainType,
+        brand: validatedData.brand,
+        manufacturer: validatedData.manufacturer,
+        thcPercentage: validatedData.thcPercentage,
+        cbdPercentage: validatedData.cbdPercentage,
+        totalCannabinoids: validatedData.totalCannabinoids,
+        sku: validatedData.sku,
         slug,
         status: 'active',
+        stockQuantity: validatedData.inventoryQuantity,
+        basePrice: validatedData.price,
+        isFeatured: validatedData.featured || false,
+        labTested: validatedData.labTested || false,
         averageRating: 0,
         reviewCount: 0,
         viewCount: 0,
         salesCount: 0,
-        stockQuantity: inventoryQuantity,
-        basePrice: price,
-        isFeatured: featured || false,
         metaTitle: validatedData.name,
         metaDescription: validatedData.shortDescription || validatedData.description
       },
