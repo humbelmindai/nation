@@ -1,7 +1,7 @@
 // 420 Nation - Products Seed Data
 // Sample cannabis products for development and testing
 
-import { PrismaClient } from '../generated/client'
+import { PrismaClient, StrainType } from '../generated/client'
 
 export async function seedProducts(prisma: PrismaClient) {
   const products = [
@@ -16,7 +16,7 @@ export async function seedProducts(prisma: PrismaClient) {
       description: 'Classic indica-dominant hybrid known for its stress-relieving properties and earthy, pine aroma. Perfect for evening relaxation.',
       shortDescription: 'Classic indica hybrid with earthy, pine aroma',
       strainName: 'OG Kush',
-      strainType: 'hybrid',
+      strainType: StrainType.hybrid,
       brand: 'Green Valley Premium',
       manufacturer: 'Green Valley Cultivation',
       thcPercentage: 24.5,
@@ -70,7 +70,7 @@ export async function seedProducts(prisma: PrismaClient) {
       description: 'Popular sativa-dominant hybrid with sweet berry aroma. Provides balanced effects of cerebral stimulation and full-body relaxation.',
       shortDescription: 'Popular sativa hybrid with sweet berry aroma',
       strainName: 'Blue Dream',
-      strainType: 'hybrid',
+      strainType: StrainType.hybrid,
       brand: 'Green Valley Premium',
       manufacturer: 'Green Valley Cultivation',
       thcPercentage: 18.5,
@@ -135,7 +135,7 @@ export async function seedProducts(prisma: PrismaClient) {
       description: 'Indica-dominant hybrid with sweet, tangy flavor. Known for its relaxing effects and beautiful dense buds covered in trichomes.',
       shortDescription: 'Indica hybrid with sweet, tangy flavor',
       strainName: 'Wedding Cake',
-      strainType: 'indica',
+      strainType: StrainType.indica,
       brand: 'Top Shelf Genetics',
       thcPercentage: 26.2,
       cbdPercentage: 0.5,
@@ -159,7 +159,7 @@ export async function seedProducts(prisma: PrismaClient) {
       description: 'Energizing sativa with pungent diesel aroma. Perfect for daytime use, creativity, and focus.',
       shortDescription: 'Energizing sativa with diesel aroma',
       strainName: 'Sour Diesel',
-      strainType: 'sativa',
+      strainType: StrainType.sativa,
       brand: 'West Coast Genetics',
       thcPercentage: 22.8,
       cbdPercentage: 0.3,
@@ -184,7 +184,7 @@ export async function seedProducts(prisma: PrismaClient) {
       description: 'Premium live resin extract made from fresh-frozen Gelato flowers. High terpene content preserves the full flavor profile.',
       shortDescription: 'Premium live resin with high terpenes',
       strainName: 'Gelato',
-      strainType: 'hybrid',
+      strainType: StrainType.hybrid,
       brand: 'Green Valley Extracts',
       thcPercentage: 78.5,
       cbdPercentage: 1.2,
