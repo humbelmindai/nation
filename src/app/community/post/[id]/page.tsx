@@ -102,6 +102,7 @@ const comments: Comment[] = [
 
 export default function CommunityPostPage({ params }: { params: { id: string } }) {
   // TODO: Use params.id to fetch the actual post data
+  const postId = params.id;
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
   const [newComment, setNewComment] = useState('');
 
