@@ -6,13 +6,15 @@ interface CardProps {
   className?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
   variant?: 'default' | 'elevated' | 'outlined' | 'glass';
+  onClick?: () => void;
 }
 
 export const Card: React.FC<CardProps> = ({
   children,
   className,
   padding = 'md',
-  variant = 'default'
+  variant = 'default',
+  onClick
 }) => {
   const baseStyles = 'bg-white rounded-xl transition-all duration-200';
   
@@ -32,7 +34,10 @@ export const Card: React.FC<CardProps> = ({
   };
 
   return (
-    <div className={clsx(baseStyles, variants[variant], paddings[padding], className)}>
+    <div 
+      className={clsx(baseStyles, variants[variant], paddings[padding], className)}
+      onClick={onClick}
+    >
       {children}
     </div>
   );
