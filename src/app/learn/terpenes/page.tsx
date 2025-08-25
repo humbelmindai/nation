@@ -154,7 +154,6 @@ const effectCategories = {
 
 export default function TerpenesPage() {
   const [selectedTerpene, setSelectedTerpene] = useState<Terpene | null>(null);
-  const [filterBy, setFilterBy] = useState<'all' | 'effects' | 'medical'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEffect, setSelectedEffect] = useState<string>('');
 
