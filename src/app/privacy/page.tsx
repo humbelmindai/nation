@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Header } from '../../components/layout/Header';
 import { Footer } from '../../components/layout/Footer';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import { Card, CardContent } from '../../components/ui/Card';
 
 export default function PrivacyPage() {
   return (
