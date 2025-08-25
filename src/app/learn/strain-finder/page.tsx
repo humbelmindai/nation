@@ -478,7 +478,7 @@ export default function StrainFinderPage() {
                       name={`question-${currentQ.id}`}
                       value={option.value}
                       checked={currentAnswers.includes(option.value)}
-                      onChange={(e) => handleAnswer(currentQ.id, option.value, currentQ.type === 'multiple')}
+                      onChange={() => handleAnswer(currentQ.id, option.value, currentQ.type === 'multiple')}
                       className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                     />
                     <span className="ml-3 text-gray-900">{option.label}</span>
