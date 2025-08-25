@@ -37,7 +37,7 @@ export async function verifyPassword(password: string, hashedPassword: string): 
   return await bcrypt.compare(password, hashedPassword)
 }
 
-export function extractTokenFromHeader(authHeader?: string): string | null {
+export function extractTokenFromHeader(authHeader?: string | null): string | null {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null
   }
